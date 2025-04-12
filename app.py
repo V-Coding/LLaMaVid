@@ -31,6 +31,8 @@ def detect():
 
     try:
         # Securely save the uploaded video temporarily
+        if video_file.filename is None:
+            raise Exception("Video filename is none")
         filename = secure_filename(video_file.filename)
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = os.path.join(tmpdir, filename)
