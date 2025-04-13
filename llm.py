@@ -1,5 +1,7 @@
 import base64
+import os
 from pathlib import Path
+import tempfile
 import time
 from typing import Optional, Union
 from PIL import Image
@@ -56,8 +58,9 @@ class GroqBatchManager:
             "Authorization": f"Bearer {self.api_key}"
         }
 
-    def prepare_jsonl(self, items: list[tuple[str, str]], output_file: str = "batch_file.jsonl") -> str:
-        with open(output_file, "w") as f:
+    def prepare_jsonl(self, items: list[tuple[str, str]]) -> str:
+        fd, path = tempfile.mkstemp(suffix=".jsonl", prefix="groq_batch_", text=True)
+        with os.fdopen(fd, "w") as f:
             for prompt, image_url in items:
                 line = {
                     "messages": [
@@ -71,7 +74,7 @@ class GroqBatchManager:
                     ]
                 }
                 f.write(json.dumps(line) + "\n")
-        return output_file
+        return path
 
     def upload_batch_file(self, file_path: str) -> str:
         url = "https://api.groq.com/openai/v1/files"
