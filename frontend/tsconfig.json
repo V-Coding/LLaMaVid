@@ -11,6 +11,10 @@
     "baseUrl": ".",
     "outDir": "dist",
     "moduleResolution": "node",
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "typeRoots": [
+      "./src/react-app/types",
+      "./node_modules/@types"
+    ]
   }
 }

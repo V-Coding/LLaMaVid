@@ -3,6 +3,8 @@ import tempfile
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from flask_cors import CORS
+import logging
 
 from main import detection_in_video, detection_in_video_batched
 
@@ -10,7 +12,7 @@ load_dotenv()
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 
 app = Flask(__name__)
-
+CORS(app, origins=['*'])
 
 @app.route("/detect", methods=["POST"])
 def detect():
@@ -49,8 +51,10 @@ def detect():
             return jsonify({"timestamps": timestamps})
 
     except Exception as e:
+        logger.exception(f"{str(e)}")
         return jsonify({"error": str(e)}), 500
 
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
