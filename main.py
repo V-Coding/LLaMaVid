@@ -1,6 +1,9 @@
 from audioop import mul
+from functools import partial, reduce
+from itertools import repeat
 import os
-from typing import Literal
+import time
+from typing import Literal, Optional
 from cv2.gapi.streaming import timestamp
 from dotenv import load_dotenv
 from more_itertools import chunked
@@ -10,11 +13,16 @@ from groq import Groq
 import os
 import sys
 from moviepy import VideoFileClip
-
+import multiprocessing as mp
 
 
 load_dotenv()
 GROQ_API_KEY = os.environ["GROQ_API_KEY_1"]
+
+
+def llm_inference_single(frame_base64, api_key, prompt_input, model, method):
+    cls = LlamaImageDetector if method == "detection" else LlamaAnomalyDetection
+    return cls(api_key, model=model).inference(frame_base64, prompt_input)
 
 def detection_in_video(
     video_path: str,
@@ -24,16 +32,12 @@ def detection_in_video(
     max_frames: int = 20,
     model: str = "meta-llama/llama-4-scout-17b-16e-instruct",
     multiframe: bool = False,
-    api_key: str = GROQ_API_KEY,
+    api_keys: Optional[list[str]] = None,
 ):
+    if api_keys is None:
+        api_keys = [GROQ_API_KEY]
+    
     sampler = VideoFrameSampler(video_path)
-    if method == "detection":
-        llm = LlamaImageDetector(api_key, model=model)
-    elif method == "anomaly":
-        llm = LlamaAnomalyDetection(api_key, model=model)
-    else:
-        raise ValueError("method must be 'detection' or 'anomaly'")
-    # explainer = LLamaImageExplainer(GROQ_API_KEY, model=model)
 
     frames_base64 = sampler.sample_frames(
         every_n_seconds=every_n_seconds,
@@ -42,35 +46,49 @@ def detection_in_video(
         multiframe=multiframe,
     )
 
+    assert method in ["detection", "anomaly"]
+
+    # if method == "detection":
+    #     llm = LlamaImageDetector(api_key, model=model)
+    # elif method == "anomaly":
+    #     llm = LlamaAnomalyDetection(api_key, model=model)
+    # else:
+    #     raise ValueError("method must be 'detection' or 'anomaly'")
+    # explainer = LLamaImageExplainer(GROQ_API_KEY, model=model)
+
     matched_timestamps = []
     timestamps = [round(i * every_n_seconds * 4 if multiframe else i * every_n_seconds, 5) for i in range(len(frames_base64))]
-    for i, frame_base64 in enumerate(frames_base64):
-        timestamp_sec = timestamps[i]
-        image = f"data:image/jpeg;base64,{frame_base64}"
+    
+    replies = []
+    temp = time.time()
+    print("Querying Groq API...")
+    with mp.Pool(4) as pool:
         try:
-            reply = llm.inference(image, prompt_input)
-            if reply.lower() == "yes":
-                matched_timestamps.append(timestamp_sec)
-                if multiframe:
-                    print(f"[✓] Object detected at {timestamp_sec}-{timestamp_sec+every_n_seconds*4} sec")
-                else:
-                    print(f"[✓] Object detected at {timestamp_sec} sec")
-            elif reply == "no":
-                if multiframe:
-                    print(f"[ ] No object at {timestamp_sec}-{timestamp_sec+every_n_seconds*4} sec")
-                else:
-                    print(f"[ ] No object at {timestamp_sec} sec")
-
-                # explanation = explainer.explain(image)
-                # print(f"EXPLANATION: {explanation}")
-            else:
-                print(f"RESPONSE ({timestamp_sec} sec): {reply}")
+            replies = pool.starmap(
+                partial(llm_inference_single, prompt_input=prompt_input, model=model, method=method),
+                [(f"data:image/jpeg;base64,{frame}", api_keys[i % len(api_keys)]) for i, frame in enumerate(frames_base64)]
+            )
         except Exception as e:
-            if multiframe:
-                print(f"[!] Error at frame {i} ({timestamp_sec}-{timestamp_sec+every_n_seconds*4} sec): {e}")
-            else:
-                print(f"[!] Error at frame {i} ({timestamp_sec} sec): {e}")
+            print(f"[!] Error: {e}")
+    print(f"{time.time()-temp:.2f}s")
 
+    for reply, timestamp_sec in zip(replies, timestamps):
+        if reply.lower() == "yes":
+            matched_timestamps.append(timestamp_sec)
+            if multiframe:
+                print(f"[✓] Object detected at {timestamp_sec}-{timestamp_sec+every_n_seconds*4} sec")
+            else:
+                print(f"[✓] Object detected at {timestamp_sec} sec")
+        elif reply == "no":
+            if multiframe:
+                print(f"[ ] No object at {timestamp_sec}-{timestamp_sec+every_n_seconds*4} sec")
+            else:
+                print(f"[ ] No object at {timestamp_sec} sec")
+
+            # explanation = explainer.explain(image)
+            # print(f"EXPLANATION: {explanation}")
+        else:
+            print(f"RESPONSE ({timestamp_sec} sec): {reply}")
 
     return matched_timestamps
 

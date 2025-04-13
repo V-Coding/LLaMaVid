@@ -12,7 +12,7 @@ from main import detection_in_video, detection_in_video_batched, transcribe_audi
 
 load_dotenv()
 
-NUM_KEYS=4
+NUM_KEYS=3
 
 API_KEYS = [os.environ[f"GROQ_API_KEY_{i}"] for i in range(NUM_KEYS)]
 api_key_cycle = cycle(API_KEYS)
@@ -44,8 +44,8 @@ def detect():
             raise Exception("Video filename is none")
         filename = secure_filename(video_file.filename)
         
-        with key_lock:
-            key = next(api_key_cycle)
+        # with key_lock:
+        #     key = next(api_key_cycle)
         
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = os.path.join(tmpdir, filename)
@@ -57,7 +57,7 @@ def detect():
                 method="detection",
                 every_n_seconds=every_n_seconds,
                 max_frames=max_frames,
-                api_key=key
+                api_keys=API_KEYS
             )
 
             return jsonify({"timestamps": timestamps})
