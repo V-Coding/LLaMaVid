@@ -182,7 +182,7 @@ def transcribe_audio(filename):
         file=(audio_path, file.read()),
 
         model="whisper-large-v3",
-
+        prompt='Make sure to transcribe any sound effects in the background of the audio, to make it accessible for deaf audiences.',
 
         response_format="verbose_json",  # Optional
         
@@ -197,23 +197,20 @@ def transcribe_audio(filename):
         for segment in transcription.segments:
             print(segment['start'], "-", segment['end'], ': ')
             print(segment['text'])
+        return transcription.segments
 
 def convert_video_to_audio_moviepy(video_file, output_ext="mp3"):
     """Converts video to audio using MoviePy library
     that uses `ffmpeg` under the hood"""
     filename, ext = os.path.splitext(video_file)
     clip = VideoFileClip(video_file)
-    clip.audio.write_audiofile(f"{filename}.{output_ext}")
+    if clip.audio: 
+        clip.audio.write_audiofile(f"{filename}.{output_ext}")
+    else:
+        raise Exception(f"clip.audio is None. {clip.audio}")
     
     return (f"{filename}.{output_ext}")
 if __name__ ==  "__main__":
-    # detected_timestamps = detect_object_in_video(
-    #     video_path="sample_data/IMG_5362.MOV",
-    #     object_description="",
-    #     every_n_seconds=1,
-    #     max_frames=40,
-    # )
-
     detected_timestamps = detection_in_video(
         video_path="sample_data/IMG_5362.MOV",
         prompt_input="""
