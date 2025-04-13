@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from more_itertools import chunked
 from videoparser import VideoFrameSampler
 from llm import LlamaAnomalyDetection, LlamaImageExplainer, LlamaImageDetector, LlamaPromptTemplates
-from groq import Groq
+from groq import APIStatusError, Groq
 import os
 import sys
 from moviepy import VideoFileClip
@@ -17,12 +17,16 @@ import multiprocessing as mp
 
 
 load_dotenv()
-GROQ_API_KEY = os.environ["GROQ_API_KEY_1"]
+GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 
 
 def llm_inference_single(frame_base64, api_key, prompt_input, model, method):
     cls = LlamaImageDetector if method == "detection" else LlamaAnomalyDetection
-    return cls(api_key, model=model).inference(frame_base64, prompt_input)
+    try:
+        reply = cls(api_key, model=model).inference(frame_base64, prompt_input)
+    except APIStatusError as e:
+        raise Exception(str(e))
+    return reply
 
 def detection_in_video(
     video_path: str,
@@ -32,11 +36,7 @@ def detection_in_video(
     max_frames: int = 20,
     model: str = "meta-llama/llama-4-scout-17b-16e-instruct",
     multiframe: bool = False,
-    api_keys: Optional[list[str]] = None,
 ):
-    if api_keys is None:
-        api_keys = [GROQ_API_KEY]
-    
     sampler = VideoFrameSampler(video_path)
 
     frames_base64 = sampler.sample_frames(
@@ -49,9 +49,9 @@ def detection_in_video(
     assert method in ["detection", "anomaly"]
 
     # if method == "detection":
-    #     llm = LlamaImageDetector(api_key, model=model)
+    #     llm = LlamaImageDetector(GROQ_API_KEY, model=model)
     # elif method == "anomaly":
-    #     llm = LlamaAnomalyDetection(api_key, model=model)
+    #     llm = LlamaAnomalyDetection(GROQ_API_KEY, model=model)
     # else:
     #     raise ValueError("method must be 'detection' or 'anomaly'")
     # explainer = LLamaImageExplainer(GROQ_API_KEY, model=model)
@@ -61,12 +61,12 @@ def detection_in_video(
     
     replies = []
     temp = time.time()
-    print("Querying Groq API...")
+    print("Querying Groq API...")        
     with mp.Pool(4) as pool:
         try:
-            replies = pool.starmap(
-                partial(llm_inference_single, prompt_input=prompt_input, model=model, method=method),
-                [(f"data:image/jpeg;base64,{frame}", api_keys[i % len(api_keys)]) for i, frame in enumerate(frames_base64)]
+            replies = pool.map(
+                partial(llm_inference_single, api_key=GROQ_API_KEY, prompt_input=prompt_input, model=model, method=method),
+                [f"data:image/jpeg;base64,{frame}" for frame in frames_base64]
             )
         except Exception as e:
             print(f"[!] Error: {e}")
@@ -197,22 +197,26 @@ def transcribe_audio(filename):
     client = Groq(api_key=GROQ_API_KEY)
 
     with open(audio_path, "rb") as file:
-        transcription = client.audio.transcriptions.create(
+        transcription = None
+        try:
+            transcription = client.audio.transcriptions.create(
 
-        file=(audio_path, file.read()),
+            file=(audio_path, file.read()),
 
-        model="whisper-large-v3",
-        prompt='Make sure to transcribe any sound effects in the background of the audio, to make it accessible for deaf audiences.',
+            model="whisper-large-v3",
+            prompt='Make sure to transcribe any sound effects in the background of the audio, to make it accessible for deaf audiences.',
 
-        response_format="verbose_json",  # Optional
-        
+            response_format="verbose_json",  # Optional
+            
 
-        timestamp_granularities = ["segment"],
-        language="en",  # Optional
+            timestamp_granularities = ["segment"],
+            language="en",  # Optional
 
-        temperature=0.0  # Optional
+            temperature=0.0  # Optional
 
-        )
+            )
+        except Exception as e:
+            print(f"Error {e}")
 
         for segment in transcription.segments:
             print(segment['start'], "-", segment['end'], ': ')

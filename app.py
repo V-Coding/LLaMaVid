@@ -10,14 +10,6 @@ import threading
 
 from main import detection_in_video, detection_in_video_batched, transcribe_audio
 
-load_dotenv()
-
-NUM_KEYS=3
-
-API_KEYS = [os.environ[f"GROQ_API_KEY_{i}"] for i in range(NUM_KEYS)]
-api_key_cycle = cycle(API_KEYS)
-key_lock = threading.Lock()
-
 app = Flask(__name__)
 CORS(app, origins=['*'])
 
@@ -57,7 +49,7 @@ def detect():
                 method="detection",
                 every_n_seconds=every_n_seconds,
                 max_frames=max_frames,
-                api_keys=API_KEYS
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
             )
 
             return jsonify({"timestamps": timestamps})
@@ -127,7 +119,8 @@ def transcribe():
             filepath = os.path.join(tmpdir, filename)
             video_file.save(filepath)
 
-            segments = transcribe_audio(filepath)
+            # segments = transcribe_audio(filepath)
+            segments = []
 
             return jsonify({"segments": segments})
 

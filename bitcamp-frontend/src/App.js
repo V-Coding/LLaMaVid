@@ -381,17 +381,21 @@ function App() {
               {activeTab === null ? (
                 <div className="space-y-6">
                   <h2 className={`text-xl font-semibold mb-4 ${themeClasses.heading}`}>Upload Video</h2>
-                  <input
-                    type="file"
-                    accept="video/*"
-                    onChange={handleVideoUpload}
-                    className={`block w-full text-sm
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-l-none file:rounded-r-full file:border-0
-                      file:text-sm file:font-semibold
-                      ${themeClasses.fileButton}
-                      ${themeClasses.input} rounded-lg`}
-                  />
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      id="video-upload"
+                    />
+                    <label
+                      htmlFor="video-upload"
+                      className={`block w-full px-4 py-2 text-center rounded-lg border ${themeClasses.button} cursor-pointer`}
+                    >
+                      Choose Video File
+                    </label>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-6">
