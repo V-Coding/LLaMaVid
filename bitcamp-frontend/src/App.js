@@ -16,6 +16,9 @@ function App() {
   const [activeTab, setActiveTab] = useState(null);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
+  const [transcription, setTranscription] = useState([]);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcribingVideoId, setTranscribingVideoId] = useState(null);
   const playerRef = useRef(null);
   const [thumbnails, setThumbnails] = useState({});
   const canvasRef = useRef(null);
@@ -36,12 +39,50 @@ function App() {
         file: file,
         name: file.name,
         description: '',
-        timestamps: []
+        timestamps: [],
+        transcription: []
       };
       setVideos([...videos, newVideo]);
       setCurrentVideo(newVideo);
       setActiveTab(newVideo.id);
       setError(null);
+      setIsTranscribing(true);
+      setTranscribingVideoId(newVideo.id);
+      
+      // Get transcription for the video
+      try {
+        const formData = new FormData();
+        formData.append('video', file);
+        formData.append('description', '');
+
+        const response = await fetch('http://localhost:5000/transcribe', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to get transcription');
+        }
+
+        const data = await response.json();
+        const transcriptionData = data.segments || [];
+        
+        // Update both the current video and the videos array with the transcription
+        const updatedVideo = {
+          ...newVideo,
+          transcription: transcriptionData
+        };
+        
+        setVideos(prevVideos => prevVideos.map(v => v.id === newVideo.id ? updatedVideo : v));
+        setCurrentVideo(updatedVideo);
+        setTranscription(transcriptionData);
+      } catch (err) {
+        console.error('Error getting transcription:', err);
+        setTranscription([{ text: "Transcription could not be generated", start: 0, end: 0 }]);
+      } finally {
+        setIsTranscribing(false);
+        setTranscribingVideoId(null);
+      }
     }
   };
 
@@ -53,6 +94,7 @@ function App() {
       setDescription('');
       setDetectionTimestamps([]);
       setThumbnails({});
+      setTranscription([]);
     }
     
     // Remove the video from the list
@@ -283,6 +325,7 @@ function App() {
                     setCurrentVideo(video);
                     setDescription(video.description);
                     setDetectionTimestamps(video.timestamps);
+                    setTranscription(video.transcription || []);
                   }}
                   className={`px-4 py-2 rounded-t-lg border border-b-0 transition-colors duration-200 relative group ${
                     activeTab === video.id
@@ -310,6 +353,7 @@ function App() {
                 setCurrentVideo(null);
                 setDescription('');
                 setDetectionTimestamps([]);
+                setTranscription([]);
               }}
               className={`px-4 py-2 rounded-t-lg border border-b-0 transition-colors duration-200 ${
                 activeTab === null
@@ -435,64 +479,91 @@ function App() {
           <div className={`transition-all duration-300 ${
             isLeftSidebarCollapsed ? 'ml-0' : 'ml-80'
           }`}>
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-7xl mx-auto">
               {currentVideo && (
-                <div className={`rounded-lg shadow-lg border ${themeClasses.card}`}>
-                  <div className="flex justify-between items-center mb-4 px-6 pt-6">
-                    <h2 className={`text-xl font-semibold ${themeClasses.heading}`}>Video Analysis</h2>
-                    <div className="flex space-x-2">
-                      {detectionTimestamps.length > 0 && (
-                        <button
-                          onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
-                          className={`p-2 rounded-lg border ${themeClasses.timestampButton} tracking-wider`}
-                        >
-                          <span className={isDarkMode ? "text-green-500" : "text-gray-800"}>[</span>
-                          {isRightSidebarCollapsed ? 'SHOW TIMESTAMPS' : 'HIDE TIMESTAMPS'}
-                          <span className={isDarkMode ? "text-green-500" : "text-gray-800"}>]</span>
-                        </button>
-                      )}
+                <div className="flex gap-6">
+                  <div className={`rounded-lg shadow-lg border ${themeClasses.card} w-[calc(100%-8rem)] -ml-32`}>
+                    <div className="flex justify-between items-center mb-4 px-6 pt-6">
+                      <h2 className={`text-xl font-semibold ${themeClasses.heading}`}>Video Analysis</h2>
+                      <div className="flex space-x-2">
+                        {detectionTimestamps.length > 0 && (
+                          <button
+                            onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+                            className={`p-2 rounded-lg border ${themeClasses.timestampButton} tracking-wider`}
+                          >
+                            <span className={isDarkMode ? "text-green-500" : "text-gray-800"}>[</span>
+                            {isRightSidebarCollapsed ? 'SHOW TIMESTAMPS' : 'HIDE TIMESTAMPS'}
+                            <span className={isDarkMode ? "text-green-500" : "text-gray-800"}>]</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className={`aspect-video rounded-lg overflow-hidden border ${themeClasses.input} mx-6 mb-6`} style={{ maxWidth: '100%' }}>
-                    <ReactPlayer
-                      ref={playerRef}
-                      url={currentVideo.url}
-                      controls
-                      width="100%"
-                      height="100%"
-                      className="react-player"
-                    />
+                    <div className={`aspect-video rounded-lg overflow-hidden border ${themeClasses.input} mx-6 mb-6`}>
+                      <ReactPlayer
+                        ref={playerRef}
+                        url={currentVideo.url}
+                        controls
+                        width="100%"
+                        height="100%"
+                        className="react-player"
+                      />
+                    </div>
+
+                    {/* Timestamps section */}
+                    {!isRightSidebarCollapsed && detectionTimestamps.length > 0 && (
+                      <div className="px-6 pb-6">
+                        <h2 className={`text-xl font-semibold mb-4 ${themeClasses.heading}`}>Detection Timestamps</h2>
+                        <div className="overflow-x-auto">
+                          <div className="flex space-x-4 pb-4" style={{ width: '100%' }}>
+                            {detectionTimestamps.map((timestamp, index) => (
+                              <div key={index} className="flex flex-col items-center space-y-2 min-w-[200px] flex-shrink-0">
+                                <div className="w-full h-32 rounded-lg overflow-hidden border border-gray-600 flex items-center justify-center">
+                                  {thumbnails[timestamp.start] ? (
+                                    <img 
+                                      src={thumbnails[timestamp.start]} 
+                                      alt={`Frame at ${timestamp.start}s`}
+                                      className="max-w-full max-h-full object-contain"
+                                    />
+                                  ) : (
+                                    <div className={`w-full h-full flex items-center justify-center ${themeClasses.input}`}>
+                                      <span className={`text-sm ${themeClasses.helper}`}>Loading...</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => handleTimestampClick(timestamp)}
+                                  className={`w-full p-2 rounded-lg border ${themeClasses.timestampButton} text-center`}
+                                >
+                                  {formatTimestamp(parseFloat(timestamp.start))}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Timestamps section */}
-                  {!isRightSidebarCollapsed && detectionTimestamps.length > 0 && (
-                    <div className="px-6 pb-6">
-                      <h2 className={`text-xl font-semibold mb-4 ${themeClasses.heading}`}>Detection Timestamps</h2>
-                      <div className="overflow-x-auto">
-                        <div className="flex space-x-4 pb-4" style={{ width: '100%' }}>
-                          {detectionTimestamps.map((timestamp, index) => (
-                            <div key={index} className="flex flex-col items-center space-y-2 min-w-[200px] flex-shrink-0">
-                              <div className="w-full h-32 rounded-lg overflow-hidden border border-gray-600 flex items-center justify-center">
-                                {thumbnails[timestamp.start] ? (
-                                  <img 
-                                    src={thumbnails[timestamp.start]} 
-                                    alt={`Frame at ${timestamp.start}s`}
-                                    className="max-w-full max-h-full object-contain"
-                                  />
-                                ) : (
-                                  <div className={`w-full h-full flex items-center justify-center ${themeClasses.input}`}>
-                                    <span className={`text-sm ${themeClasses.helper}`}>Loading...</span>
-                                  </div>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => handleTimestampClick(timestamp)}
-                                className={`w-full p-2 rounded-lg border ${themeClasses.timestampButton} text-center`}
-                              >
-                                {formatTimestamp(parseFloat(timestamp.start))} - {formatTimestamp(parseFloat(timestamp.end))}
-                              </button>
+                  {/* Transcription section */}
+                  {(transcription.length > 0 || (isTranscribing && currentVideo?.id === transcribingVideoId)) && (
+                    <div className={`w-96 rounded-lg shadow-lg border ${themeClasses.card} h-fit`}>
+                      <div className="p-4">
+                        <h2 className={`text-xl font-semibold mb-4 ${themeClasses.heading}`}>Transcription</h2>
+                        <div className={`rounded-lg border ${themeClasses.input} p-4 max-h-[calc(100vh-16rem)] overflow-y-auto`}>
+                          {isTranscribing && currentVideo?.id === transcribingVideoId ? (
+                            <div className="flex items-center justify-center h-32">
+                              <span className={`text-lg ${themeClasses.helper}`}>Loading...</span>
                             </div>
-                          ))}
+                          ) : (
+                            transcription.map((segment, index) => (
+                              <div key={index} className="mb-4">
+                                <div className={`text-sm ${themeClasses.helper} mb-1`}>
+                                  {formatTimestamp(segment.start)} - {formatTimestamp(segment.end)}
+                                </div>
+                                <p className={`${themeClasses.label}`}>{segment.text}</p>
+                              </div>
+                            ))
+                          )}
                         </div>
                       </div>
                     </div>
