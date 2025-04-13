@@ -6,7 +6,7 @@ import { useFiles } from "./contexts/FilesContext"
 import DetectButton from "./DetectButton";
 import uploadVideo from "./utils/uploadFile";
 import VideoPlayer from "./components/VideoPlayer";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import FramesList from "./FramesList";
 import theme from './theme'
 
@@ -43,6 +43,36 @@ const UploadPage = () => {
             color: theme.primary,
         }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                {/* New Title Section */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '20px',
+                    marginBottom: '40px',
+                    padding: '20px',
+                    backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                    border: `2px solid ${theme.primary}`,
+                    borderRadius: '8px',
+                    boxShadow: '0 0 20px rgba(0, 255, 0, 0.5)',
+                }}>
+                    <Search
+                        size={48}
+                        color={theme.primary}
+                        style={{
+                            filter: 'drop-shadow(0 0 10px rgba(0, 255, 0, 0.5))'
+                        }}
+                    />
+                    <h1 style={{
+                        margin: 0,
+                        fontSize: '48px',
+                        color: theme.primary,
+                        textShadow: '0 0 10px rgba(0, 255, 0, 0.5)',
+                        letterSpacing: '2px'
+                    }}>
+                        FrameSleuth
+                    </h1>
+                </div>
+
                 <div style={{
                     width: '100%',
                     padding: '0 10px',
