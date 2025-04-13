@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFiles } from "./contexts/FilesContext";
 import { useSelectedFile } from "./contexts/SelectedFileContext";
 import extractFramesAsBlobs from "./utils/extractImage";
@@ -18,27 +18,25 @@ const FrameImage: React.FC<FrameImageProps> = ({ src, alt = 'Video Frame', style
 
 const FramesList = () => {
 
-    const { files, addFiles, deleteFile, timestamps, setTimestamps } = useFiles();
-    const { selectedFile, selectFile } = useSelectedFile();
+    const { files, timestamps, selectedFile } = useFiles();
+    // const { selectedFile, selectFile } = useSelectedFile();
     // console.log(selectedFile.name);
     const [frameBlobs, setFrameBlobs] = useState<string[]>([]);
-    const selectedFileIndex = files.findIndex(file => file === selectedFile);
-    const selectedFileTimestamps = timestamps[selectedFileIndex] || [];
+    const selectedFileIndex = useMemo(() => files.findIndex(file => file === selectedFile), [files, selectedFile]);
+    const selectedFileTimestamps = useMemo(() => timestamps[selectedFileIndex] || [], [timestamps, selectedFileIndex]);
+    // console.log("selected file", selectedFile, " selected file index", selectedFileIndex);
     useEffect(() => {
         if (selectedFile && selectedFileTimestamps.length > 0) {
             extractFramesAsBlobs(selectedFile, selectedFileTimestamps)
                 .then(setFrameBlobs)
                 .catch((error) => console.error('Error extracting frames:', error));
+        } else {
+            setFrameBlobs([]);
         }
-    }, [selectedFile, selectedFileTimestamps]);
-    console.log(frameBlobs);
+    }, [selectedFile, selectedFileTimestamps, setFrameBlobs]);
 
     const selectTimestamp = (timestamp: number) => {
         eventBus.dispatchEvent(new CustomEvent("selectTimestamp", { detail: timestamp }));
-    }
-
-    if (files.length == 0 || timestamps.length == 0) {
-        return (<></>)
     }
 
     return (
