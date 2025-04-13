@@ -24,12 +24,13 @@ def detection_in_video(
     max_frames: int = 20,
     model: str = "meta-llama/llama-4-scout-17b-16e-instruct",
     multiframe: bool = False,
+    api_key: str = GROQ_API_KEY,
 ):
     sampler = VideoFrameSampler(video_path)
     if method == "detection":
-        llm = LlamaImageDetector(GROQ_API_KEY, model=model)
+        llm = LlamaImageDetector(api_key, model=model)
     elif method == "anomaly":
-        llm = LlamaAnomalyDetection(GROQ_API_KEY, model=model)
+        llm = LlamaAnomalyDetection(api_key, model=model)
     else:
         raise ValueError("method must be 'detection' or 'anomaly'")
     # explainer = LLamaImageExplainer(GROQ_API_KEY, model=model)
@@ -82,12 +83,13 @@ def detection_in_video_batched(
         model: str = "meta-llama/llama-4-scout-17b-16e-instruct",
         multiframe: bool = False,
         batch_size: int = 4,
+        api_key: str = GROQ_API_KEY,
     ):
     sampler = VideoFrameSampler(video_path)
     if method == "detection":
-        llm = LlamaImageDetector(GROQ_API_KEY, model=model)
+        llm = LlamaImageDetector(api_key, model=model)
     elif method == "anomaly":
-        llm = LlamaAnomalyDetection(GROQ_API_KEY, model=model)
+        llm = LlamaAnomalyDetection(api_key, model=model)
     else:
         raise ValueError("method must be 'detection' or 'anomaly'")
 

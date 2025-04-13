@@ -5,11 +5,19 @@ from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from flask_cors import CORS
 import logging
+from itertools import cycle
+import threading
 
 from main import detection_in_video, detection_in_video_batched, transcribe_audio
 
 load_dotenv()
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
+GROQ_API_KEY_2 = os.environ["GROQ_API_KEY_2"]
+GROQ_API_KEY_3 = os.environ["GROQ_API_KEY_3"]
+
+API_KEYS = [GROQ_API_KEY, GROQ_API_KEY_2, GROQ_API_KEY_3]
+api_key_cycle = cycle(API_KEYS)
+key_lock = threading.Lock()
 
 app = Flask(__name__)
 CORS(app, origins=['*'])
@@ -36,6 +44,10 @@ def detect():
         if video_file.filename is None:
             raise Exception("Video filename is none")
         filename = secure_filename(video_file.filename)
+        
+        with key_lock:
+            key = next(api_key_cycle)
+        
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = os.path.join(tmpdir, filename)
             video_file.save(filepath)
@@ -46,6 +58,7 @@ def detect():
                 method="detection",
                 every_n_seconds=every_n_seconds,
                 max_frames=max_frames,
+                api_key=key
             )
 
             return jsonify({"timestamps": timestamps})
