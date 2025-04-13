@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
-from main import detect_object_in_video
+from main import detection_in_video, detection_in_video_batched
 
 load_dotenv()
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
@@ -38,9 +38,10 @@ def detect():
             filepath = os.path.join(tmpdir, filename)
             video_file.save(filepath)
 
-            timestamps = detect_object_in_video(
+            timestamps = detection_in_video(
                 video_path=filepath,
-                object_description=description,
+                prompt_input=description,
+                method="detection",
                 every_n_seconds=every_n_seconds,
                 max_frames=max_frames,
             )
