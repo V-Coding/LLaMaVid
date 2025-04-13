@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
+import eventBus from "../utils/eventBus";
 
 type FileVideoPlayerProps = {
     file: File;
@@ -18,13 +19,17 @@ const FileVideoPlayer: React.FC<FileVideoPlayerProps> = ({ file, timestamps }) =
         return () => URL.revokeObjectURL(url); // Cleanup
     }, [url]);
 
+    useEffect(() => {
+        const handleSelectTimestamp = (e: CustomEvent<number>) => {
+            videoRef.current.currentTime = e.detail;
+        };
+        const listener = (e: Event) => handleSelectTimestamp(e as CustomEvent<number>);
+        eventBus.addEventListener("selectTimestamp", listener);
 
-    const cueText = timestamps
-        .map((t, i) => `${t} --> ${t + 0.1}\nMark ${i + 1}`)
-        .join("\n\n");
-
-    const vttBlob = new Blob([`WEBVTT\n\n${cueText}`], { type: "text/vtt" });
-    const vttUrl = URL.createObjectURL(vttBlob);
+        return () => {
+            eventBus.removeEventListener("selectTimestamp", listener);
+        };
+    }, []);
 
     return (
         <div style={{ height: "100%", width: "100%" }}>
@@ -34,11 +39,6 @@ const FileVideoPlayer: React.FC<FileVideoPlayerProps> = ({ file, timestamps }) =
                 controls
                 style={{ height: "100%", width: "100%", objectFit: "contain" }}
             >
-                <track
-                    kind="chapters"
-                    src={vttUrl}
-                    label="Timestamps"
-                    default />
             </video>
         </div>
     );

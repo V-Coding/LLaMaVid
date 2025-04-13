@@ -15,7 +15,6 @@ const TextArea: React.FC<TextAreaProps> = ({ style, placeholder, value, setValue
             onChange={(e) => setValue(e.target.value)}
             placeholder={placeholder}
             style={style}
-            className="w-full h-32 p-2 border rounded resize-none"
         />)
 }
 
