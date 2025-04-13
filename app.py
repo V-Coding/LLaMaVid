@@ -11,11 +11,10 @@ import threading
 from main import detection_in_video, detection_in_video_batched, transcribe_audio
 
 load_dotenv()
-GROQ_API_KEY = os.environ["GROQ_API_KEY"]
-GROQ_API_KEY_2 = os.environ["GROQ_API_KEY_2"]
-GROQ_API_KEY_3 = os.environ["GROQ_API_KEY_3"]
 
-API_KEYS = [GROQ_API_KEY, GROQ_API_KEY_2, GROQ_API_KEY_3]
+NUM_KEYS=4
+
+API_KEYS = [os.environ[f"GROQ_API_KEY_{i}"] for i in range(NUM_KEYS)]
 api_key_cycle = cycle(API_KEYS)
 key_lock = threading.Lock()
 
