@@ -182,7 +182,7 @@ def transcribe_audio(filename):
         file=(audio_path, file.read()),
 
         model="whisper-large-v3",
-
+        prompt='Make sure to transcribe any sound effects in the background of the audio, to make it accessible for deaf audiences.',
 
         response_format="verbose_json",  # Optional
         
@@ -197,6 +197,7 @@ def transcribe_audio(filename):
         for segment in transcription.segments:
             print(segment['start'], "-", segment['end'], ': ')
             print(segment['text'])
+        return transcription.segments
 
 def convert_video_to_audio_moviepy(video_file, output_ext="mp3"):
     """Converts video to audio using MoviePy library
