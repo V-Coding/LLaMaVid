@@ -14,7 +14,7 @@ from moviepy import VideoFileClip
 
 
 load_dotenv()
-GROQ_API_KEY = os.environ["GROQ_API_KEY"]
+GROQ_API_KEY = os.environ["GROQ_API_KEY_1"]
 
 def detection_in_video(
     video_path: str,
